@@ -9,23 +9,23 @@ import matplotlib.dates as mdates
 from collections import Counter
 from datetime import datetime
 
-#PARSING --------------------------------------------------------------------------------------------
+# PARSING --------------------------------------------------------------------------------------------
 
-#Opening the file and initialzing the bs4 parser 
+# Opening the file and initialzing the bs4 parser 
 with open("test_full.html") as html_doc:
     soup = BeautifulSoup(html_doc, "html.parser")
 
-#IB [0,8] to finnish grade [4,10] using linear mapping
+# IB [0,8] to finnish grade [4,10] using linear mapping
 def to_finnish_grade(x, denom):
     grade = x/denom*6+4
     return grade - (grade%0.25)
 
-#Parsing the data and putting it into a dictionary 
+# Parsing the data and putting it into a dictionary 
 rows = soup.find("tbody").find_all("tr")
-parsed_data = np.empty((5, len(rows)), "U50")
+parsed_data = np.empty((4, len(rows)), "U50")
 
 class Cell:
-    #Exceptions and notations
+    # Exceptions and notations
     grade_exceptions = {
         "91/2": "9½"
     }
@@ -66,12 +66,13 @@ class Cell:
         else: output = self.string
         return str(output) 
 
-#The "engine" which pushes the data to parse
+# The "engine" which pushes the data to parse
 types = ["Date", "Teacher", "Subject", "Grade", "IB"]
 
 for i, row in enumerate(rows):
     cols = row.find_all("td")
-    cols.pop(3) #remove the additional information column as it is useless and impractical
+    cols.pop(3) # remove the additional information column as it is useless and impractical
+    cols.pop(4) # remove the ib (verbal assesment) column as it is useless and impractical
 
     for j, cell in enumerate(cols):
         cell = Cell(types[j], cell.get_text(strip=True))
@@ -79,67 +80,81 @@ for i, row in enumerate(rows):
         parsed_data[j,i] = cell.parse()
 
         
-#CHARTS AND DATA --------------------------------------------------------------------------------------------
+# CHARTS AND DATA --------------------------------------------------------------------------------------------
 
-#Setup
+def purify(arrs):
+    mask = np.ones(arrs[0].shape, dtype=bool)
+    output = []
+
+    for u in arrs: 
+        mask = mask & (u != "")
+    for u in arrs: 
+        u = u[mask]
+        output.append(u)
+    return np.stack(output)
+
+# Setup
 fig, axes = plt.subplots(2,2)
 
-#Extract data
+# Extract data
+dates, teachers, subjects, grades = purify(parsed_data)
 
-dates, teachers, subjects, grades, ibs = np.split(parsed_data.flatten(), 5)
-
-#CHART 0 ----------------------------------------------
-
-#Cleaning up/purifying
-grades_clean = grades[grades != ""].astype(np.float)
-grades_clean = grades_clean[grades_clean > 0]
-
-unique, counts = np.unique(grades_clean, return_counts=True)
-print(unique, counts)
-#Graphing
-axes[0,1].bar(unique, counts, width=0.25, align="center")
-axes[0,1].axvline(grades_clean.mean(), color="firebrick", linestyle="dashed", linewidth=1.5)
+# Specific parsing for certain data categories
+grades = grades.astype(np.float) 
+dates = [datetime.strptime(s, "%a %d.%m.%Y") for s in dates]
 
 
+# CHART 0,0 ----------------------------------------------
 
-#CHART 1 ----------------------------------------------
-mask = (dates != "") & (grades != "")
+labels00, data00 = np.unique(grades, return_counts=True)
 
-dates_parsed = [datetime.strptime(s, "%a %d.%m.%Y") for s in dates[mask][::-1]]
-grades_parsed = grades[mask].astype(np.float)
+# Graphing
+axes[0,0].bar(labels00, data00, width=0.25, align="center")
+axes[0,0].axvline(grades.mean(), color="firebrick", linestyle="dashed", linewidth=1.5)
+# plt.show()
 
-months = [d.month for d in dates_parsed]
+# CHART 0,1 ----------------------------------------------
 
-split_indeces = np.where(np.abs(np.diff(months))>1)[0] + 1
-print(np.diff(months))
+# Determine where the edges of the terms were by finding where the 
+# difference in months is over 1 
+months = [d.month for d in dates]
+split_indeces = np.where(np.abs(np.diff(months))>1)[0] + 1 
 
-data10 = np.split(dates_parsed, split_indeces)
-data11 = np.split(grades_parsed, split_indeces)
+# the below data is reversed so that it is sorted oldest to newest
+terms_dates = np.split(dates, split_indeces)[::-1] 
+terms_grades = np.split(grades, split_indeces)[::-1] 
 
-full_range = sorted(set(grades_parsed))
-test2 = np.empty(0)
-print(full_range)
-terms = ["Autumn", "Spring"]
+labels01 = []
+data01 = []
 
-for i in range(len(data11)):
-    data10[i] = terms[data10[i][0].month // 7] + " " + str(data10[i][0].year)
-    data11[i] = dict(Counter(data11[i]))
+for t in terms_dates:
+    terms = ["Autumn", "Spring"]
+    first = t[0] #get only the first element as we just need to determine the season based on the month
+
+    season = terms[first.month // 7]
+    year = str(first.year)
+
+    labels01.append(season + " " + year)
+
+for t in terms_grades:
+    grades_range = sorted(set(grades))
+    count = dict(Counter(t))
     
-    test = [data11[i][g] if g in data11[i] else 0 for g in full_range]
-    test2 = np.append(test2, test)
+    t_count = [count[g] if g in count else 0 for g in grades_range] # if the grade is not in the dict, add 0 to create an aligned graph
+    data01.append(t_count)
 
-
-test2 = np.reshape(test2, (-1, len(full_range)))
-test2_cum = test2.cumsum(axis=1)
-
-# data10 = [d.strftime("%b %y") for d in data10]
-# data10 = [label if i%2==0 else "\n" + label for i,label in enumerate(data10)]
+data01 = np.asarray(data01).T
+data01_cum = np.cumsum(data01, axis=0)
 
 for i in range(8):
-    heights = test2[:, i]
-    starts = test2_cum[:, i] - heights
-    axes[0,0].bar(data10, heights, bottom=starts, width=0.5)
+    heights = data01[i]
+    starts = data01_cum[i] - heights
+    axes[0,1].bar(labels01, heights, bottom=starts, width=0.5)
 
 plt.show()
 
+#CHART 3 ----------------------------------------------
 
+
+
+# axes[1,0].imshow()
