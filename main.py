@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from collections import Counter
+from collections import defaultdict
 from datetime import datetime
 
 # PARSING --------------------------------------------------------------------------------------------
@@ -181,16 +182,24 @@ axes[1,0].set_xticklabels(xlabels10)
 axes[1,0].set_yticklabels(ylabels10)
 
 
+#CHART 1, 1 ----------------------------------------------
+subjects_sums = defaultdict(list) # create a default dict so that it would automatically add keys if they don't exist
 
+for i in range(len(grades)):
+    s = subjects[i]
+    subjects_sums[s].append(grades[i])
 
+data11 = np.array([np.mean(s) for s in subjects_sums.values()]) 
+labels11 = np.array([l if len(l) < 10 else l[:9] + "..." for l in subjects_sums.keys()]) # limit the length of the subject as to avoid overlapping
 
+#Sort data in ascending order from left to right
+sort_indeces = data11.argsort()
+data11 = data11[sort_indeces]
+labels11 = labels11[sort_indeces]
 
+labels11 = np.array([l if i%2==0 else "\n"+l for i, l in enumerate(labels11)]) # prevents overlapping labels by making some hop over others
 
-
-
-
-
-
-# axes[1,0].imshow()
+axes[1,1].set_ylim(np.min(grades),10) # manually setting the y lim to get a better close-up view on the data
+axes[1,1].bar(labels11, data11)
 
 plt.show()
