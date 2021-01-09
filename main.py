@@ -4,7 +4,6 @@ import re
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 
 from collections import Counter
 from datetime import datetime
@@ -83,6 +82,8 @@ for i, row in enumerate(rows):
 # CHARTS AND DATA --------------------------------------------------------------------------------------------
 
 def purify(arrs):
+    """Purify a given input array of other numpy arrays. 
+    Does so by cross-removing all the values which aren't defined from the arrays."""
     mask = np.ones(arrs[0].shape, dtype=bool)
     output = []
 
@@ -111,21 +112,20 @@ labels00, data00 = np.unique(grades, return_counts=True)
 # Graphing
 axes[0,0].bar(labels00, data00, width=0.25, align="center")
 axes[0,0].axvline(grades.mean(), color="firebrick", linestyle="dashed", linewidth=1.5)
-# plt.show()
 
 # CHART 0,1 ----------------------------------------------
 
 # Determine where the edges of the terms were by finding where the 
 # difference in months is over 1 
 months = [d.month for d in dates]
-split_indeces = np.where(np.abs(np.diff(months))>1)[0] + 1 
+split_indeces = np.where(np.abs(np.diff(months))>3)[0] + 1 
 
 # the below data is reversed so that it is sorted oldest to newest
 terms_dates = np.split(dates, split_indeces)[::-1] 
 terms_grades = np.split(grades, split_indeces)[::-1] 
 
 labels01 = []
-data01 = []
+data01 = [] # number of certain grades in each term 
 
 for t in terms_dates:
     terms = ["Autumn", "Spring"]
@@ -140,21 +140,57 @@ for t in terms_grades:
     grades_range = sorted(set(grades))
     count = dict(Counter(t))
     
-    t_count = [count[g] if g in count else 0 for g in grades_range] # if the grade is not in the dict, add 0 to create an aligned graph
+    t_count = [count[g] if g in count else 0 for g in grades_range] # if the grade is not in the dict, add 0 to create an aligned array
     data01.append(t_count)
 
-data01 = np.asarray(data01).T
-data01_cum = np.cumsum(data01, axis=0)
+data01 = np.asarray(data01).T # transpose to have each layer/color in its own row
+data01_cum = np.cumsum(data01, axis=0) # used to place several pillars on top of each other in the graph
 
-for i in range(8):
+for i in range(len(data01)):
     heights = data01[i]
     starts = data01_cum[i] - heights
     axes[0,1].bar(labels01, heights, bottom=starts, width=0.5)
 
-plt.show()
 
-#CHART 3 ----------------------------------------------
+#CHART 1, 0 ----------------------------------------------
+
+years = [d.year for d in dates]
+split_indeces = np.nonzero(np.diff(years))[0] + 1 
+
+years_dates = np.split(dates, split_indeces)[::-1] 
+
+xlabels10 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] # the month labels
+ylabels10 = [] # the year labels
+data10 = []
+
+for y in years_dates:
+    m = [d.month for d in y][::-1]
+    count = Counter(m)
+    m_count = [count[m] if m in dict(count) else 0 for m in range(1,13)] # if the month is not in dict, add 0 to create an aligned array
+
+    data10.append(m_count)
+    ylabels10.append(y[0].year)
+
+im = axes[1,0].imshow(np.array(data10, dtype=np.float))
+
+# To show all the tick values
+axes[1,0].set_xticks(np.arange(len(xlabels10)))
+axes[1,0].set_yticks(np.arange(len(ylabels10)))
+
+axes[1,0].set_xticklabels(xlabels10)
+axes[1,0].set_yticklabels(ylabels10)
+
+
+
+
+
+
+
+
+
 
 
 
 # axes[1,0].imshow()
+
+plt.show()
