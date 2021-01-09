@@ -152,6 +152,15 @@ for i in range(len(data01)):
     starts = data01_cum[i] - heights
     axes[0,1].bar(labels01, heights, bottom=starts, width=0.5)
 
+# Percentage of 10s from the total number of grades in the term
+for i in range(len(labels01)):
+    last = data01.T[i][-1] # the last layer aka the 10s layer
+    sum_ = sum(data01.T[i])
+
+    y = sum_ - last/2 
+    v = int(round(last / sum_ * 100))
+    text = axes[0,1].text(i, y, str(v) + "%", ha="center", va="center", c="w")
+
 
 #CHART 1, 0 ----------------------------------------------
 
@@ -180,6 +189,14 @@ axes[1,0].set_yticks(np.arange(len(ylabels10)))
 
 axes[1,0].set_xticklabels(xlabels10)
 axes[1,0].set_yticklabels(ylabels10)
+
+
+# Text annotation on each square of the heatmap
+for i in range(len(xlabels10)):
+    for j in range(len(ylabels10)):
+        if xlabels10[i] in ["Jun", "Jul", "Aug"] and data10[j][i] == 0: # easter egg: put (duh) on summer months
+            text = axes[1,0].text(i, j, "(duh)", ha="center", va="center", color="w", size="x-small") 
+        else: text = axes[1,0].text(i, j, data10[j][i], ha="center", va="center", color="w")
 
 
 #CHART 1, 1 ----------------------------------------------
