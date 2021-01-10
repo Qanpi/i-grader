@@ -99,6 +99,7 @@ def purify(arrs):
 
 # Setup
 fig, axes = plt.subplots(2,2)
+# plt.suptitle("iGrader - the only and best tool to analyze your Wilma grades", fontsize="xx-large")
 
 # Extract data
 dates, teachers, subjects, grades = purify(parsed_data)
@@ -114,7 +115,11 @@ labels00, data00 = np.unique(grades, return_counts=True)
 
 # Graphing
 axes[0,0].bar(labels00, data00, width=0.25, align="center")
-axes[0,0].axvline(grades.mean(), color="firebrick", linestyle="dashed", linewidth=1.5)
+axes[0,0].axvline(grades.mean(), color="firebrick", linestyle="dashed", linewidth=1.5, label="Mean")
+
+
+axes[0,0].legend()
+axes[0,0].set_title("Histogram of overall grades - bigger column more grade", loc="left", fontsize="x-large", color="dimgray")
 
 # CHART 0,1 ----------------------------------------------
 
@@ -167,6 +172,8 @@ for i in range(len(labels01)):
     v = int(round(last / sum_ * 100))
     text = axes[0,1].text(i, y, str(v) + "%", ha="center", va="center", c="w")
 
+axes[0,1].set_title("Number of grades across terms - more green better grades", loc="left", fontsize="x-large", color="dimgray")
+
 
 #CHART 1, 0 ----------------------------------------------
 
@@ -204,12 +211,17 @@ axes[1,0].set_anchor("N")
 # Text annotation on each square of the heatmap
 for i in range(len(xlabels10)):
     for j in range(len(ylabels10)):
-        if xlabels10[i] in ["Jun", "Jul", "Aug"] and data10[j][i] == 0: text = "(duh)" # easter egg: put (duh) on summer months
-        else: text = data10[j][i] 
-
         if data10[j][i] / np.max(data10) > 0.5: color = "k" # linearly map the current value to [0,1] and determine what color the text should be
         else: color = "w"
-        text = axes[1,0].text(i, j, text, ha="center", va="center", color=color)
+
+        if xlabels10[i] in ["Jun", "Jul", "Aug"] and data10[j][i] == 0: # easter egg: put (duh) on summer months
+            axes[1,0].text(i, j, "(duh)", ha="center", va="center", color=color, fontsize="small")
+        else: axes[1,0].text(i, j, data10[j][i], ha="center", va="center", color=color)
+
+axes[1,0].set_title("The number of tests across months - brighter square more tests", loc="left", fontsize="x-large", color="dimgray")
+
+
+#CHART 1.5, 0 ----------------------------------------------
 
 
 #CHART 1, 1 ----------------------------------------------
@@ -239,5 +251,7 @@ for i in range(len(labels11)):
     if len(l) > (n := int(height*25)): # the number 25 is pretty much arbitrary and was just pulled out of my ass
         l = l[:n] + "..." 
     axes[1,1].text(i, np.min(grades), " " + l, rotation=90, ha="left", va="bottom", color="w")
+
+axes[1,1].set_title("The average of grades from certain subjects - bigger column better grades", loc="left", fontsize="x-large", color="dimgray")
 
 plt.show()
