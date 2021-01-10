@@ -11,6 +11,8 @@ from datetime import datetime
 
 # PARSING --------------------------------------------------------------------------------------------
 
+plt.style.use("seaborn")
+
 # Opening the file and initialzing the bs4 parser 
 with open("test_full.html") as html_doc:
     soup = BeautifulSoup(html_doc, "html.parser")
@@ -129,7 +131,7 @@ labels01 = []
 data01 = [] # number of certain grades in each term 
 
 for t in terms_dates:
-    terms = ["Autumn", "Spring"]
+    terms = ["Spring", "Autumn"]
     first = t[0] #get only the first element as we just need to determine the season based on the month
 
     season = terms[first.month // 7]
@@ -145,12 +147,16 @@ for t in terms_grades:
     data01.append(t_count)
 
 data01 = np.asarray(data01).T # transpose to have each layer/color in its own row
+colors01 = plt.get_cmap('RdYlGn')(np.linspace(0.15, 0.90, data01.shape[0])) # step over the linear space to get certain color values
 data01_cum = np.cumsum(data01, axis=0) # used to place several pillars on top of each other in the graph
 
 for i in range(len(data01)):
     heights = data01[i]
     starts = data01_cum[i] - heights
-    axes[0,1].bar(labels01, heights, bottom=starts, width=0.5)
+    axes[0,1].bar(labels01, heights, bottom=starts, width=0.5, color=colors01[i], label=grades_range[i])
+
+h, l = axes[0,1].get_legend_handles_labels() # used to get the legend handles and reverse their order
+axes[0,1].legend(reversed(h), reversed(l), loc="center left", bbox_to_anchor=(1, 0.5), fontsize="small") 
 
 # Percentage of 10s from the total number of grades in the term
 for i in range(len(labels01)):
@@ -175,13 +181,14 @@ data10 = []
 
 for y in years_dates:
     m = [d.month for d in y][::-1]
+    print(m)
     count = Counter(m)
     m_count = [count[m] if m in dict(count) else 0 for m in range(1,13)] # if the month is not in dict, add 0 to create an aligned array
 
     data10.append(m_count)
     ylabels10.append(y[0].year)
 
-im = axes[1,0].imshow(np.array(data10, dtype=np.float))
+im = axes[1,0].imshow(np.array(data10, dtype=np.float), cmap=plt.get_cmap("pink"))
 
 # To show all the tick values
 axes[1,0].set_xticks(np.arange(len(xlabels10)))
@@ -190,13 +197,19 @@ axes[1,0].set_yticks(np.arange(len(ylabels10)))
 axes[1,0].set_xticklabels(xlabels10)
 axes[1,0].set_yticklabels(ylabels10)
 
+axes[1,0].grid(False)
+
+axes[1,0].set_anchor("N")
 
 # Text annotation on each square of the heatmap
 for i in range(len(xlabels10)):
     for j in range(len(ylabels10)):
-        if xlabels10[i] in ["Jun", "Jul", "Aug"] and data10[j][i] == 0: # easter egg: put (duh) on summer months
-            text = axes[1,0].text(i, j, "(duh)", ha="center", va="center", color="w", size="x-small") 
-        else: text = axes[1,0].text(i, j, data10[j][i], ha="center", va="center", color="w")
+        if xlabels10[i] in ["Jun", "Jul", "Aug"] and data10[j][i] == 0: text = "(duh)" # easter egg: put (duh) on summer months
+        else: text = data10[j][i] 
+
+        if data10[j][i] / np.max(data10) > 0.5: color = "k" # linearly map the current value to [0,1] and determine what color the text should be
+        else: color = "w"
+        text = axes[1,0].text(i, j, text, ha="center", va="center", color=color)
 
 
 #CHART 1, 1 ----------------------------------------------
@@ -207,16 +220,24 @@ for i in range(len(grades)):
     subjects_sums[s].append(grades[i])
 
 data11 = np.array([np.mean(s) for s in subjects_sums.values()]) 
-labels11 = np.array([l if len(l) < 10 else l[:9] + "..." for l in subjects_sums.keys()]) # limit the length of the subject as to avoid overlapping
+labels11 = np.array(list(subjects_sums.keys())) # limit the length of the subject as to avoid text overflow
 
 #Sort data in ascending order from left to right
 sort_indeces = data11.argsort()
 data11 = data11[sort_indeces]
 labels11 = labels11[sort_indeces]
 
-labels11 = np.array([l if i%2==0 else "\n"+l for i, l in enumerate(labels11)]) # prevents overlapping labels by making some hop over others
-
 axes[1,1].set_ylim(np.min(grades),10) # manually setting the y lim to get a better close-up view on the data
 axes[1,1].bar(labels11, data11)
+
+axes[1,1].set_xticklabels([]) # turn off the axis labels and use manual labels instead
+for i in range(len(labels11)):
+    l = labels11[i]
+    height = data11[i] - np.min(grades)
+
+    # cut the label to the height of the column 
+    if len(l) > (n := int(height*25)): # the number 25 is pretty much arbitrary and was just pulled out of my ass
+        l = l[:n] + "..." 
+    axes[1,1].text(i, np.min(grades), " " + l, rotation=90, ha="left", va="bottom", color="w")
 
 plt.show()
