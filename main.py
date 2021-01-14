@@ -4,6 +4,9 @@ import re
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from matplotlib.colors import Normalize
+from matplotlib.colors import ListedColormap
 
 from collections import Counter
 from collections import defaultdict
@@ -120,8 +123,7 @@ labels00, data00 = np.unique(grades, return_counts=True)
 
 # Graphing
 axes[0,0].bar(labels00, data00, width=0.25, align="center")
-axes[0,0].axvline(grades.mean(), color="firebrick", linestyle="dashed", linewidth=1.5, label="Mean")
-
+axes[0,0].axvline(grades.mean(), color="firebrick", linestyle="dashed", linewidth=1.5, label="Mean: " + str(round(grades.mean(), 2)))
 
 axes[0,0].legend()
 axes[0,0].set_title("Histogram of overall grades - bigger column more grade", loc="left", fontsize="x-large", color="dimgray")
@@ -157,7 +159,8 @@ for t in terms_grades:
     data01.append(t_count)
 
 data01 = np.asarray(data01).T # transpose to have each layer/color in its own row
-colors01 = plt.get_cmap('RdYlGn')(np.linspace(0.15, 0.90, data01.shape[0])) # step over the linear space to get certain color values
+cmap = ListedColormap(plt.get_cmap('RdYlGn')(np.linspace(0.15, 0.90, data01.shape[0]))) # step over the linear space to get certain color values
+colors01 = cmap.colors
 data01_cum = np.cumsum(data01, axis=0) # used to place several pillars on top of each other in the graph
 
 for i in range(len(data01)):
@@ -165,9 +168,13 @@ for i in range(len(data01)):
     starts = data01_cum[i] - heights
     axes[0,1].bar(labels01, heights, bottom=starts, width=0.5, color=colors01[i], label=grades_range[i])
 
-h, l = axes[0,1].get_legend_handles_labels() # used to get the legend handles and reverse their order
+norm = Normalize(vmin=np.min(grades), vmax=10)
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])
+fig.colorbar(sm, ax=axes[0,1], ticks=ticker.MultipleLocator(0.5))
 
-axes[0,1].legend(reversed(h), reversed(l), loc="center left", bbox_to_anchor=(1, 0.5), fontsize="small") 
+# h, l = axes[0,1].get_legend_handles_labels() # used to get the legend handles and reverse their order
+# axes[0,1].legend(reversed(h), reversed(l), loc="lower left", bbox_to_anchor=(1, 0), fontsize="small") 
 
 # Percentage of 10s from the total number of grades in the term
 for i in range(len(labels01)):
@@ -194,7 +201,6 @@ data10 = []
 
 for y in years_dates:
     m = [d.month for d in y][::-1]
-    print(m)
     count = Counter(m)
     m_count = [count[m] if m in dict(count) else 0 for m in range(1,13)] # if the month is not in dict, add 0 to create an aligned array
 
@@ -212,7 +218,7 @@ axes[1,0].set_yticklabels(ylabels10)
 
 axes[1,0].grid(False)
 
-axes[1,0].set_anchor("N")
+# axes[1,0].set_anchor("N")
 
 # Text annotation on each square of the heatmap
 for i in range(len(xlabels10)):
@@ -244,9 +250,10 @@ labels11 = np.array(list(subjects_sums.keys())) # limit the length of the subjec
 sort_indeces = data11.argsort()
 data11 = data11[sort_indeces]
 labels11 = labels11[sort_indeces]
+colors11 = plt.get_cmap("Blues")(np.linspace(0.5, 0.9, data11.size))
 
 axes[1,1].set_ylim(np.min(grades),10) # manually setting the y lim to get a better close-up view on the data
-axes[1,1].bar(labels11, data11)
+axes[1,1].bar(labels11, data11, color=colors11)
 
 axes[1,1].set_xticklabels([]) # turn off the axis labels and use manual labels instead
 for i in range(len(labels11)):
