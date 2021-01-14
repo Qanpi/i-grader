@@ -14,7 +14,7 @@ from datetime import datetime
 plt.style.use("seaborn")
 
 # Opening the file and initialzing the bs4 parser 
-with open("test_full.html") as html_doc:
+with open("WilmaGradesJoel.html") as html_doc:
     soup = BeautifulSoup(html_doc, "html.parser")
 
 # IB [0,8] to finnish grade [4,10] using linear mapping
@@ -29,7 +29,8 @@ parsed_data = np.empty((4, len(rows)), "U50")
 class Cell:
     # Exceptions and notations
     grade_exceptions = {
-        "91/2": "9½"
+        "91/2": "9½",
+        "10+": "10"
     }
 
     grade_modifiers = {
@@ -53,7 +54,7 @@ class Cell:
             if match: output = match.group(1)
 
         elif self.type == "Grade":
-            if self.string in Cell.grade_exceptions: self.string = Cell.grade_exceptions[self.string] #check for predefined edge cases
+            if self.string in self.grade_exceptions: self.string = self.grade_exceptions[self.string] #check for predefined edge cases
 
             if match := re.findall(r"(\d+)\W*/\W*(\d+)", self.string): #format 1, e.g. A: 8/8
                 grades = [to_finnish_grade(int(num), int(denom)) for num, denom in match]
@@ -64,12 +65,16 @@ class Cell:
             elif match := re.search(r"(\d+)(\D*)", self.string): #format 3, e.g. 9+
                 grade, mod = match.groups()
                 output = int(grade) + Cell.grade_modifiers[mod]
+
+        elif self.type == "Date":
+            index = self.string.index(" ") + 1
+            output = self.string[index:]
         
         else: output = self.string
         return str(output) 
 
 # The "engine" which pushes the data to parse
-types = ["Date", "Teacher", "Subject", "Grade", "IB"]
+types = ["Date", "Teacher", "Subject", "Grade"]
 
 for i, row in enumerate(rows):
     cols = row.find_all("td")
@@ -106,7 +111,7 @@ dates, teachers, subjects, grades = purify(parsed_data)
 
 # Specific parsing for certain data categories
 grades = grades.astype(np.float) 
-dates = [datetime.strptime(s, "%a %d.%m.%Y") for s in dates]
+dates = [datetime.strptime(s, "%d.%m.%Y") for s in dates]
 
 
 # CHART 0,0 ----------------------------------------------
@@ -161,6 +166,7 @@ for i in range(len(data01)):
     axes[0,1].bar(labels01, heights, bottom=starts, width=0.5, color=colors01[i], label=grades_range[i])
 
 h, l = axes[0,1].get_legend_handles_labels() # used to get the legend handles and reverse their order
+
 axes[0,1].legend(reversed(h), reversed(l), loc="center left", bbox_to_anchor=(1, 0.5), fontsize="small") 
 
 # Percentage of 10s from the total number of grades in the term
@@ -246,10 +252,10 @@ axes[1,1].set_xticklabels([]) # turn off the axis labels and use manual labels i
 for i in range(len(labels11)):
     l = labels11[i]
     height = data11[i] - np.min(grades)
+    cap = int(height / (10-np.min(grades)) * 45) # the number 45 is pretty much arbitrary and was just pulled out of my ass
 
     # cut the label to the height of the column 
-    if len(l) > (n := int(height*25)): # the number 25 is pretty much arbitrary and was just pulled out of my ass
-        l = l[:n] + "..." 
+    if len(l) > cap: l = l[:cap] + "..." 
     axes[1,1].text(i, np.min(grades), " " + l, rotation=90, ha="left", va="bottom", color="w")
 
 axes[1,1].set_title("The average of grades from certain subjects - bigger column better grades", loc="left", fontsize="x-large", color="dimgray")
